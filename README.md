@@ -1,4 +1,4 @@
-##U.S. Stock Market Pattern Analysis
+## U.S. Stock Market Pattern Analysis
 
 A data-driven exploration of market behavior, technical indicators, and regime dynamics using historical S&P 500 stock data.
 
