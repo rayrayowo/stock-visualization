@@ -205,3 +205,29 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# macOS
+.DS_Store
+
+# PyCharm
+.idea/
+
+# Matplotlib cache
+.mplconfig/
+outputs/mplcache/
+
+# generated outputs: keep figures, ignore tables/caches
+outputs/*
+!outputs/*.png
+!outputs/*.csv
+outputs/mplcache/
+outputs/*.parquet
+
+# raw data: keep canonical source csv files only
+data/raw/*
+!data/raw/all_stocks_5yr.csv
+!data/raw/constituents.csv
+
+# processed data should not be committed
+data/processed/
+*.parquet
