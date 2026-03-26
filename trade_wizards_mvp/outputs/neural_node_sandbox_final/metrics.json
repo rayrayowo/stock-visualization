@@ -1,0 +1,13 @@
+{
+  "n_days": 1259.0,
+  "cumulative_return": 0.3366022817136207,
+  "cagr": 0.0597915583521087,
+  "annual_volatility": 0.0817776788883562,
+  "sharpe": 0.7511500101749611,
+  "max_drawdown": -0.097753071148031,
+  "win_rate_daily": 0.41223193010325654,
+  "total_trades": 352.0,
+  "win_rate_trade": 0.6164772727272727,
+  "avg_trade_return": 0.011081897059523808,
+  "avg_holding_days": 15.826704545454545
+}

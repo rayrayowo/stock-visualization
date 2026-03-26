@@ -1,0 +1,121 @@
+{
+  "run_name": "neural_node_sandbox_v1",
+  "data": {
+    "prices_path": "data/raw/all_stocks_5yr.csv",
+    "cache_dir": "trade_wizards_mvp/cache",
+    "start_date": "2013-01-01",
+    "end_date": "2018-12-31",
+    "max_tickers": 12,
+    "min_history_days": 300
+  },
+  "features": {
+    "lookahead_days": 5,
+    "sma_fast": 20,
+    "sma_slow": 60,
+    "rsi_window": 14,
+    "volume_z_window": 20
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "sma_fast_col",
+        "type": "indicator",
+        "indicator": "column",
+        "column": "sma_20"
+      },
+      {
+        "id": "sma_slow_col",
+        "type": "indicator",
+        "indicator": "column",
+        "column": "sma_60"
+      },
+      {
+        "id": "trend_up",
+        "type": "compare",
+        "left": "sma_fast_col",
+        "op": ">",
+        "right": "sma_slow_col"
+      },
+      {
+        "id": "trend_down",
+        "type": "compare",
+        "left": "sma_fast_col",
+        "op": "<",
+        "right": "sma_slow_col"
+      },
+      {
+        "id": "rsi_not_hot",
+        "type": "compare",
+        "left": "rsi_14",
+        "op": "<",
+        "right": 70
+      },
+      {
+        "id": "nn_prob",
+        "type": "neural_net",
+        "features": [
+          "ret_1d",
+          "ret_5d",
+          "macd_hist",
+          "rsi_14",
+          "volume_z20"
+        ],
+        "target": "target_up_5d",
+        "train_window_days": 252,
+        "retrain_every_days": 63,
+        "min_train_rows": 500,
+        "hidden_layer_sizes": [
+          16,
+          8
+        ],
+        "max_iter": 60,
+        "random_state": 42
+      },
+      {
+        "id": "nn_bullish",
+        "type": "compare",
+        "left": "nn_prob",
+        "op": ">=",
+        "right": 0.55
+      },
+      {
+        "id": "nn_bearish",
+        "type": "compare",
+        "left": "nn_prob",
+        "op": "<=",
+        "right": 0.45
+      },
+      {
+        "id": "entry_long",
+        "type": "logic",
+        "op": "and",
+        "inputs": [
+          "trend_up",
+          "rsi_not_hot",
+          "nn_bullish"
+        ]
+      },
+      {
+        "id": "exit_long",
+        "type": "logic",
+        "op": "or",
+        "inputs": [
+          "trend_down",
+          "nn_bearish"
+        ]
+      }
+    ],
+    "signals": {
+      "entry": "entry_long",
+      "exit": "exit_long"
+    }
+  },
+  "backtest": {
+    "fee_bps": 2.0,
+    "slippage_bps": 1.0
+  },
+  "output": {
+    "out_dir": "trade_wizards_mvp/outputs",
+    "chart_ticker": "AAPL"
+  }
+}

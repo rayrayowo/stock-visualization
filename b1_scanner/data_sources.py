@@ -193,3 +193,23 @@ def get_tushare_mainboard_stocks(limit: int = 100, token: Optional[str] = None) 
         stocks = stocks.head(limit)
 
     return stocks.reset_index(drop=True)
+
+
+def get_tushare_index_stocks(index_code: str, token: Optional[str] = None) -> pd.DataFrame:
+    """Fetch constituent stocks of a specific index from Tushare."""
+    pro = _get_tushare_pro(token)
+    
+    try:
+        # 获取指数成分股
+        df = pro.index_weight(index_code=index_code)
+        if df is not None and not df.empty:
+            # 提取成分股代码和权重
+            result = pd.DataFrame({
+                'ts_code': df['con_code'],
+                'weight': df['weight'] if 'weight' in df.columns else None
+            })
+            return result
+    except Exception as e:
+        print(f"Failed to get index constituents for {index_code}: {e}")
+    
+    return pd.DataFrame()

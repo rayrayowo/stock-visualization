@@ -2,16 +2,54 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 
 from data_sources import FetchParams, fetch_data
 from indicators import add_all_indicators
+
+
+# ─────────────────────────────────────────────
+# 日志配置
+# ─────────────────────────────────────────────
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# 为每次扫描创建独立的日志文件
+scan_log_file = os.path.join(LOG_DIR, f"scan_{date.today().strftime('%Y%m%d')}.log")
+
+# 配置根日志记录器
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.DEBUG)
+
+# 文件处理器 - 记录所有日志
+file_handler = logging.FileHandler(scan_log_file, mode="a", encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)s | %(message)s",
+    datefmt="%H:%M:%S"
+)
+file_handler.setFormatter(file_formatter)
+
+# 控制台处理器 - 只显示INFO以上
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(file_formatter)
+
+# 避免重复添加handlers
+if not root_logger.handlers:
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -26,7 +64,7 @@ class B1Config:
     request_pause_sec: float = 0.2
     
     # 战法选择
-    strategy: str = "B1"  # B1, B2
+    strategy: str = "B1"  # B1, B2, 自定义
     
     # 知行趋势线选项
     require_golden_cross: bool = False  # 是否要求金叉后第一个B1
@@ -36,6 +74,26 @@ class B1Config:
     market_cap_max: float = 0  # 最大市值, 0表示不限制
     # 行业板块
     sector: str = "全部"
+    
+    # ========== 自定义策略参数 ==========
+    # J值范围 (None表示不限制)
+    kdj_j_min: Optional[float] = None
+    kdj_j_max: Optional[float] = None
+    
+    # DEA条件: "any" | "positive" | "negative"
+    dea_condition: str = "any"
+    
+    # 白砖信号: "any" | "required" | "forbidden"
+    brick_white_condition: str = "any"
+    
+    # 知行线金叉: "any" | "white_above" | "yellow_above"
+    zhixing_condition: str = "any"
+    
+    # 涨幅条件: None表示不限制, 否则要求 >= X%
+    price_change_min: Optional[float] = None
+    
+    # 量比条件: None表示不限制, 否则要求 >= X
+    volume_ratio_min: Optional[float] = None
 
 
 def is_cn_mainboard(symbol: str) -> bool:
@@ -96,6 +154,8 @@ def _weekly_ma_check(weekly_df: pd.DataFrame) -> Dict[str, Any]:
 def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) -> Dict[str, Any]:
     cfg = config or B1Config()
     symbol = symbol.strip().upper()
+    
+    logger.info(f"🟢 开始扫描: {symbol} ({name}) | 战法: {cfg.strategy}")
 
     daily = fetch_data(
         FetchParams(
@@ -107,6 +167,8 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
             tushare_token=cfg.tushare_token,
         )
     )
+    
+    logger.debug(f"  📊 {symbol}: 获取日线数据 {len(daily)} 条")
 
     weekly_start = cfg.end - timedelta(days=cfg.weekly_lookback_days)
     weekly = fetch_data(
@@ -119,8 +181,11 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
             tushare_token=cfg.tushare_token,
         )
     )
+    
+    logger.debug(f"  📊 {symbol}: 获取周线数据 {len(weekly)} 条")
 
     if daily.empty or len(daily) < cfg.min_daily_bars:
+        logger.warning(f"  ⛔ {symbol}: 日线数据不足 ({len(daily)} 条)")
         return {
             "symbol": symbol,
             "name": name or symbol,
@@ -132,6 +197,7 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     latest = daily_ind.iloc[-1]
 
     weekly_info = _weekly_ma_check(weekly)
+    logger.debug(f"  📈 {symbol}: 周线检查 - {'✅' if weekly_info['weekly_ok'] else '❌'} ({weekly_info['weekly_reason']})")
 
     # 知行趋势线: 白线(短期) vs 黄线(长期)
     zhixing_white = latest.get("zhixing_white")  # 白线: EMA(EMA(C,10),10)
@@ -184,9 +250,69 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     if cfg.strategy == "B1":
         kdj_ok = kdj_ok_b1
         zhixing_required = True  # B1需要知行趋势线
-    else:  # B2
+    elif cfg.strategy == "B2":
         kdj_ok = kdj_ok_b2
         zhixing_required = False  # B2不需要知行趋势线
+    elif cfg.strategy == "DSZ战法":
+        # DSZ砖型图战法 - 使用三种定式检测
+        kdj_ok = True  # DSZ不检查J值
+        # 需要DSZ信号列
+        dsz_cols = ["dsz_n_pattern", "dsz_sideways", "dsz_uptrend_cont"]
+        if all(col in daily_ind.columns for col in dsz_cols):
+            dsz_signal = daily_ind[["dsz_n_pattern", "dsz_sideways", "dsz_uptrend_cont"]].iloc[-1]
+            dsz_ok = bool(dsz_signal["dsz_n_pattern"]) or bool(dsz_signal["dsz_sideways"]) or bool(dsz_signal["dsz_uptrend_cont"])
+        else:
+            dsz_ok = False
+        conditions["dsz_ok"] = dsz_ok
+        zhixing_required = True  # DSZ需要知行线多头
+    else:  # 自定义策略
+        # 自定义 J 值范围
+        if cfg.kdj_j_min is not None and pd.notna(kdj_j):
+            kdj_ok = kdj_j >= cfg.kdj_j_min
+        elif cfg.kdj_j_max is not None and pd.notna(kdj_j):
+            kdj_ok = kdj_j <= cfg.kdj_j_max
+        elif cfg.kdj_j_min is not None and cfg.kdj_j_max is not None and pd.notna(kdj_j):
+            kdj_ok = cfg.kdj_j_min <= kdj_j <= cfg.kdj_j_max
+        else:
+            kdj_ok = True
+        
+        # 自定义 DEA 条件
+        if cfg.dea_condition == "positive":
+            macd_ok = bool(pd.notna(macd_dea) and macd_dea > 0)
+        elif cfg.dea_condition == "negative":
+            macd_ok = bool(pd.notna(macd_dea) and macd_dea < 0)
+        else:  # any
+            macd_ok = pd.notna(macd_dea)
+        
+        # 自定义知行线条件
+        if cfg.zhixing_condition == "white_above":
+            zhixing_bullish = bool(pd.notna(zhixing_white) and pd.notna(zhixing_yellow) and zhixing_white > zhixing_yellow)
+        elif cfg.zhixing_condition == "yellow_above":
+            zhixing_bullish = bool(pd.notna(zhixing_white) and pd.notna(zhixing_yellow) and zhixing_yellow > zhixing_white)
+        else:  # any
+            zhixing_bullish = True
+        
+        # 自定义涨幅条件
+        if cfg.price_change_min is not None:
+            price_ok = price_change_pct >= cfg.price_change_min
+        else:
+            price_ok = True
+        
+        # 自定义量比条件
+        if cfg.volume_ratio_min is not None:
+            vol_ok = volume_ratio >= cfg.volume_ratio_min
+        else:
+            vol_ok = True
+        
+        # 自定义白砖条件
+        if cfg.brick_white_condition == "required":
+            brick_white_ok = bool(brick_white == 1)
+        elif cfg.brick_white_condition == "forbidden":
+            brick_white_ok = bool(brick_white != 1)
+        else:  # any
+            brick_white_ok = True
+        
+        zhixing_required = cfg.zhixing_condition != "any"
 
     conditions = {
         "mainboard_ok": mainboard_ok,
@@ -197,8 +323,11 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
         "golden_cross": golden_cross if cfg.require_golden_cross else True,
         "brick_white": bool(brick_white == 1),
         # B2特有
-        "price_change_ok": price_ok if cfg.strategy == "B2" else True,
-        "volume_ratio_ok": vol_ok if cfg.strategy == "B2" else True,
+        "price_change_ok": price_ok if cfg.strategy in ["B2", "DSZ战法"] else (price_ok if cfg.strategy == "自定义" else True),
+        "volume_ratio_ok": vol_ok if cfg.strategy in ["B2", "DSZ战法"] else (vol_ok if cfg.strategy == "自定义" else True),
+        "dsz_ok": dsz_ok if cfg.strategy == "DSZ战法" else True,
+        # 自定义策略特有
+        "brick_white_ok": brick_white_ok if cfg.strategy == "自定义" else True,
     }
 
     passed = all([
@@ -214,9 +343,35 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     if cfg.strategy == "B2":
         passed = passed and conditions["price_change_ok"] and conditions["volume_ratio_ok"]
     
+    # 自定义策略额外条件
+    if cfg.strategy == "自定义":
+        if cfg.brick_white_condition != "any":
+            passed = passed and conditions.get("brick_white_ok", True)
+        if cfg.price_change_min is not None:
+            passed = passed and conditions["price_change_ok"]
+        if cfg.volume_ratio_min is not None:
+            passed = passed and conditions["volume_ratio_ok"]
+    
     # 如果开启白色砖头筛选
     if cfg.require_brick_white and not conditions["brick_white"]:
         passed = False
+    
+    # ─────────────────────────────────────────
+    # 记录每个条件的筛选结果
+    # ─────────────────────────────────────────
+    logger.info(f"  📋 {symbol} 条件检查:")
+    logger.info(f"      主板: {'✅' if conditions['mainboard_ok'] else '❌'} ({symbol})")
+    logger.info(f"      周线: {'✅' if conditions['weekly_ok'] else '❌'} ({weekly_info['weekly_reason']})")
+    logger.info(f"      MACD DEA>0: {'✅' if conditions['macd_dea_ok'] else '❌'} (DEA={macd_dea})")
+    logger.info(f"      KDJ J: {'✅' if conditions['kdj_j_ok'] else '❌'} (J={kdj_j}, 阈值={13 if cfg.strategy=='B1' else (55 if cfg.strategy=='B2' else '自定义')})")
+    logger.info(f"      知行线: {'✅' if conditions['zhixing_bullish'] else '❌'} (白线>{'黄线' if zhixing_bullish else '≤黄线'})")
+    if cfg.require_golden_cross:
+        logger.info(f"      金叉: {'✅' if conditions['golden_cross'] else '❌'}")
+    if cfg.strategy in ["B2", "DSZ战法", "自定义"]:
+        logger.info(f"      涨幅: {'✅' if conditions['price_change_ok'] else '❌'} ({price_change_pct:.2f}%)")
+        logger.info(f"      量比: {'✅' if conditions['volume_ratio_ok'] else '❌'} ({volume_ratio:.2f})")
+    logger.info(f"      白色砖头: {'✅ 买点!' if conditions['brick_white'] else '⚪'}")
+    logger.info(f"  🎯 {symbol} 最终结果: {'✅ 通过' if passed else '❌ 未通过'}")
 
     return {
         "symbol": symbol,
@@ -254,16 +409,50 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     }
 
 
-def scan_batch(symbol_rows: Iterable[Dict[str, str]], config: Optional[B1Config] = None) -> List[Dict[str, Any]]:
+def scan_batch(
+    symbol_rows: Iterable[Dict[str, str]],
+    config: Optional[B1Config] = None,
+    progress_callback: Optional[Callable[[int, int, Dict[str, Any]], None]] = None,
+) -> List[Dict[str, Any]]:
+    """Scan multiple symbols in parallel using ThreadPoolExecutor.
+    
+    Args:
+        symbol_rows: Iterable of dicts with 'symbol' and optional 'name'.
+        config: B1Config instance.
+        progress_callback: Called with (completed_count, total_count, result_dict)
+                          after each stock completes. Safe to call from Streamlit.
+    
+    Returns:
+        List of result dicts in the same order as input symbols.
+    """
     cfg = config or B1Config()
-    results: List[Dict[str, Any]] = []
-
+    
+    # Parse once into a list so we know the total count
+    rows_list: List[Dict[str, str]] = []
     for row in symbol_rows:
         symbol = row.get("symbol", "").strip()
         name = row.get("name", "").strip()
-        if not symbol:
-            continue
-
+        if symbol:
+            rows_list.append({"symbol": symbol, "name": name})
+    
+    if not rows_list:
+        return []
+    
+    total = len(rows_list)
+    
+    # Determine thread count based on pause_sec (aggressive parallelism for short pauses)
+    # Tushare rate limit ≈ 2000/min → ~33/sec. Each stock = 2 calls.
+    # Use up to 15 workers; reduce sleep proportionally.
+    raw_workers = max(1, int(0.5 / max(cfg.request_pause_sec, 0.05)))
+    max_workers = min(raw_workers, 50)
+    
+    # Thread-local cache for shared data to avoid redundant fetches (optional optimisation)
+    results_ordered: List[Optional[Dict[str, Any]]] = [None] * total
+    completed_count = 0
+    
+    def worker(idx: int, row: Dict[str, str]) -> Tuple[int, Dict[str, Any]]:
+        symbol = row["symbol"]
+        name = row["name"]
         try:
             result = scan_symbol(symbol=symbol, name=name, config=cfg)
         except Exception as exc:
@@ -273,13 +462,25 @@ def scan_batch(symbol_rows: Iterable[Dict[str, str]], config: Optional[B1Config]
                 "passed": False,
                 "error": str(exc),
             }
-
-        results.append(result)
-
-        if cfg.request_pause_sec > 0:
-            time.sleep(cfg.request_pause_sec)
-
-    return results
+        return idx, result
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(worker, i, row): i for i, row in enumerate(rows_list)}
+        
+        for future in as_completed(futures):
+            idx, result = future.result()
+            results_ordered[idx] = result
+            completed_count += 1
+            
+            if progress_callback:
+                try:
+                    progress_callback(completed_count, total, result)
+                except Exception:
+                    # Don't let progress callback errors crash the scan
+                    pass
+    
+    # Filter out None results (shouldn't happen, but be safe)
+    return [r for r in results_ordered if r is not None]
 
 
 def flatten_result_for_table(result: Dict[str, Any]) -> Dict[str, Any]:
