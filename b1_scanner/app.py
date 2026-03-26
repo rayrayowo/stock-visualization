@@ -29,6 +29,7 @@ def _init_state():
         "scan_table": None,         # DataFrame for display
         "scan_done": False,         # 是否已完成扫描
         "last_config_hash": None,   # 用于检测参数变化
+        "scan_log": None,           # 本次扫描的日志
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -661,9 +662,18 @@ def main():
             st.dataframe(table, use_container_width=True)
             if table is not None:
                 csv_bytes = table.to_csv(index=False).encode("utf-8-sig")
-                st.download_button("下载结果 CSV", data=csv_bytes,
-                                   file_name=f"b1_scan_{date.today().isoformat()}.csv",
-                                   mime="text/csv", use_container_width=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button("📥 下载结果 CSV", data=csv_bytes,
+                                       file_name=f"b1_scan_{date.today().isoformat()}.csv",
+                                       mime="text/csv", use_container_width=True)
+                # 恢复时也提供日志下载
+                if st.session_state.get("scan_log"):
+                    with col2:
+                        log_bytes = st.session_state.scan_log.encode("utf-8")
+                        st.download_button("📋 下载本次日志", data=log_bytes,
+                                           file_name=f"b1_scan_log_{date.today().isoformat()}.log",
+                                           mime="text/plain", use_container_width=True)
         else:
             if st.button("开始批量扫描", type="primary", use_container_width=True):
                 with st.spinner("准备股票池..."):
@@ -749,13 +759,60 @@ def main():
                     st.dataframe(table, use_container_width=True)
 
                     csv_bytes = table.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "下载结果 CSV",
-                        data=csv_bytes,
-                        file_name=f"b1_scan_{date.today().isoformat()}.csv",
-                        mime="text/csv",
-                        use_container_width=True,
-                    )
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.download_button(
+                            "📥 下载结果 CSV",
+                            data=csv_bytes,
+                            file_name=f"b1_scan_{date.today().isoformat()}.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                        )
+                    
+                    # ── 保存本次日志 ─────────────────────────────
+                    log_file = os.path.join(os.path.dirname(__file__), "logs", f"scan_{date.today().strftime('%Y%m%d')}.log")
+                    if os.path.exists(log_file):
+                        with open(log_file, "r", encoding="utf-8") as f:
+                            log_content = f.read()
+                        # 提取本次扫描相关的日志（从"开始扫描"到扫描结束）
+                        # 按时间戳和关键字过滤
+                        lines = log_content.split("\n")
+                        # 找到本次扫描开始的行（扫描第一只股票的时间）
+                        scan_start_time = None
+                        for line in lines:
+                            if "🟢 开始扫描:" in line:
+                                # 提取时间戳
+                                ts = line.split(" | ")[0] if " | " in line else None
+                                if ts and not scan_start_time:
+                                    scan_start_time = ts
+                                    break
+                        
+                        if scan_start_time:
+                            # 只保留从本次扫描开始之后的日志
+                            start_idx = None
+                            for i, line in enumerate(lines):
+                                if scan_start_time in line and "🟢 开始扫描:" in line:
+                                    start_idx = i
+                                    break
+                            if start_idx is not None:
+                                session_log = "\n".join(lines[start_idx:])
+                            else:
+                                session_log = log_content
+                        else:
+                            session_log = log_content
+                        
+                        # 保存到 session_state
+                        st.session_state.scan_log = session_log
+                        
+                        with col2:
+                            log_bytes = session_log.encode("utf-8")
+                            st.download_button(
+                                "📋 下载本次日志",
+                                data=log_bytes,
+                                file_name=f"b1_scan_log_{date.today().isoformat()}.log",
+                                mime="text/plain",
+                                use_container_width=True,
+                            )
 
                     # ── 日志查看器 ─────────────────────────────
                     with st.expander("📋 查看扫描日志", expanded=False):
