@@ -81,12 +81,12 @@ def normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     rename_map = {
         "trade_date": "date",
         "vol": "volume",
+        "Volume": "volume",
         "Date": "date",
         "Open": "open",
         "High": "high",
         "Low": "low",
         "Close": "close",
-        "Volume": "volume",
     }
     out = out.rename(columns=rename_map)
 

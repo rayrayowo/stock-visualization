@@ -70,11 +70,16 @@ def calc_boll(df: pd.DataFrame, period: int = 20, n_std: float = 2.0) -> pd.Data
 
 def calc_vol(df: pd.DataFrame) -> pd.DataFrame:
     """成交量均线"""
+    # 支持 volume 或 vol 列名
+    vol_col = "volume" if "volume" in df.columns else "vol"
+    if vol_col not in df.columns:
+        return pd.DataFrame()
+    
     return pd.DataFrame(
         {
-            "vol_ma5": df["vol"].rolling(5, min_periods=5).mean(),
-            "vol_ma10": df["vol"].rolling(10, min_periods=10).mean(),
-            "vol_ma20": df["vol"].rolling(20, min_periods=20).mean(),
+            "vol_ma5": df[vol_col].rolling(5, min_periods=5).mean(),
+            "vol_ma10": df[vol_col].rolling(10, min_periods=10).mean(),
+            "vol_ma20": df[vol_col].rolling(20, min_periods=20).mean(),
         }
     )
 
@@ -307,7 +312,9 @@ def detect_dsz_patterns_v2(df: pd.DataFrame) -> pd.DataFrame:
     # ---- 共用条件 ----
     white_above_yellow = white > yellow
     price_above_yellow = close > yellow
-    flat_volume = df["vol"] / vol_ma5 >= 1.0
+    # 支持 volume 或 vol 列名
+    vol_col = "volume" if "volume" in df.columns else "vol"
+    flat_volume = df[vol_col] / vol_ma5 >= 1.0
 
     # ---- 1. N型起跳 ----
     # 前面有上涨趋势 (最近5日有上涨)

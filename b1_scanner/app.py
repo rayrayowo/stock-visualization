@@ -13,6 +13,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+# 设置 Tushare Token
+os.environ.setdefault("TUSHARE_TOKEN", "3a870845a82bc2a522a1b9dbc324df8b0be58390ac0088804243a615")
+
 from data_sources import DEFAULT_TUSHARE_TOKEN, get_tushare_mainboard_stocks
 from scanner_core import B1Config, flatten_result_for_table, scan_batch, scan_symbol
 from kline_chart import create_kline_chart
