@@ -212,6 +212,8 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     # 金叉后第一个B1的检测
     # 逻辑：今天满足B1条件 + 最近一次金叉发生在今天之前 + 从金叉到现在没有其他B1
     golden_cross = False
+    kdj_j = latest.get("kdj_j")  # 提前获取，避免后续使用时报错
+    
     if cfg.require_golden_cross and len(daily_ind) >= 2:
         # 检查今天是否满足B1条件（J < 13）
         is_b1_today = bool(pd.notna(kdj_j) and kdj_j < 13)
@@ -254,7 +256,6 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     
     mainboard_ok = is_cn_mainboard(symbol)
     macd_dea = latest.get("macd_dea")
-    kdj_j = latest.get("kdj_j")
     close = latest.get("close")
     volume = latest.get("volume", 0)
     prev_close = daily_ind.iloc[-2]["close"] if len(daily_ind) >= 2 else close
