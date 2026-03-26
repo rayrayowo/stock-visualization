@@ -209,15 +209,44 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
         zhixing_white > zhixing_yellow
     )
     
-    # 金叉检测: 白线从下方穿越到上方 (可选)
+    # 金叉后第一个B1的检测
+    # 逻辑：今天满足B1条件 + 最近一次金叉发生在今天之前 + 从金叉到现在没有其他B1
     golden_cross = False
     if cfg.require_golden_cross and len(daily_ind) >= 2:
-        prev = daily_ind.iloc[-2]
-        prev_white = prev.get("zhixing_white")
-        prev_yellow = prev.get("zhixing_yellow")
-        if pd.notna(prev_white) and pd.notna(prev_yellow):
-            # 昨天白线 <= 黄线, 今天白线 > 黄线 = 金叉
-            golden_cross = bool(prev_white <= prev_yellow and zhixing_white > zhixing_yellow)
+        # 检查今天是否满足B1条件（J < 13）
+        is_b1_today = bool(pd.notna(kdj_j) and kdj_j < 13)
+        
+        if is_b1_today:
+            # 找到历史上所有金叉位置（白线从下方穿越到上方）
+            golden_cross_indices = []
+            for i in range(1, len(daily_ind)):
+                curr = daily_ind.iloc[i]
+                prev = daily_ind.iloc[i-1]
+                curr_white = curr.get("zhixing_white")
+                curr_yellow = curr.get("zhixing_yellow")
+                prev_white = prev.get("zhixing_white")
+                prev_yellow = prev.get("zhixing_yellow")
+                
+                if all(pd.notna(v) for v in [curr_white, curr_yellow, prev_white, prev_yellow]):
+                    # 昨天白线 <= 黄线，今天白线 > 黄线 = 金叉
+                    if prev_white <= prev_yellow and curr_white > curr_yellow:
+                        golden_cross_indices.append(i)
+            
+            if golden_cross_indices:
+                # 最近一次金叉的位置
+                last_gc_idx = golden_cross_indices[-1]
+                
+                # 检查从金叉到现在是否已有其他B1（排除今天）
+                b1_count_after_gc = 0
+                for i in range(last_gc_idx + 1, len(daily_ind) - 1):  # 排除今天
+                    row = daily_ind.iloc[i]
+                    j_val = row.get("kdj_j")
+                    if pd.notna(j_val) and j_val < 13:
+                        b1_count_after_gc += 1
+                
+                # 如果从金叉到现在（排除今天）没有其他B1，今天就是第一个
+                if b1_count_after_gc == 0:
+                    golden_cross = True
     
     # 砖型图检测
     brick_white = latest.get("brick_white", 0)  # 白色砖头 = 1 (买点)
