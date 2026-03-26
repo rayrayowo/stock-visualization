@@ -245,6 +245,10 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
     kdj_ok_b2 = bool(pd.notna(kdj_j) and kdj_j < 55)  # B2: J < 55
     price_ok = price_change_pct >= 4  # 涨幅 >= 4%
     vol_ok = volume_ratio >= 1.1  # 量比 >= 1.1
+    
+    # DSZ战法默认值
+    dsz_ok = False
+    dsz_ok_temp = False
 
     # 根据战法选择条件
     if cfg.strategy == "B1":
@@ -263,7 +267,8 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
             dsz_ok = bool(dsz_signal["dsz_n_pattern"]) or bool(dsz_signal["dsz_sideways"]) or bool(dsz_signal["dsz_uptrend_cont"])
         else:
             dsz_ok = False
-        conditions["dsz_ok"] = dsz_ok
+        # conditions 还没定义，先存到临时变量
+        dsz_ok_temp = dsz_ok
         zhixing_required = True  # DSZ需要知行线多头
     else:  # 自定义策略
         # 自定义 J 值范围
@@ -325,7 +330,7 @@ def scan_symbol(symbol: str, name: str = "", config: Optional[B1Config] = None) 
         # B2特有
         "price_change_ok": price_ok if cfg.strategy in ["B2", "DSZ战法"] else (price_ok if cfg.strategy == "自定义" else True),
         "volume_ratio_ok": vol_ok if cfg.strategy in ["B2", "DSZ战法"] else (vol_ok if cfg.strategy == "自定义" else True),
-        "dsz_ok": dsz_ok if cfg.strategy == "DSZ战法" else True,
+        "dsz_ok": dsz_ok_temp if cfg.strategy == "DSZ战法" else True,
         # 自定义策略特有
         "brick_white_ok": brick_white_ok if cfg.strategy == "自定义" else True,
     }
