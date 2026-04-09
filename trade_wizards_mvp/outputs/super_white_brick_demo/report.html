@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Super White Brick Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 32px;
+      color: #111827;
+      background: #f8fafc;
+    }
+    h1, h2 {
+      margin-bottom: 12px;
+    }
+    .hero {
+      background: white;
+      border: 1px solid #dbe4f0;
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .card {
+      background: white;
+      border: 1px solid #dbe4f0;
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .chart {
+      background: white;
+      border: 1px solid #dbe4f0;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .chart img {
+      width: 100%;
+      border-radius: 12px;
+    }
+    .tw-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .tw-table th, .tw-table td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .tw-table th {
+      background: #eef4ff;
+    }
+    .muted {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Super White Brick / 超级白砖</h1>
+    <p class="muted">Simple event-study backtest inside Trade Wizards Studio.</p>
+    <div class="grid">
+      <div class="card">
+        <strong>Signals / 信号数</strong>
+        <div>31,932</div>
+      </div>
+      <div class="card">
+        <strong>Unique Symbols / 股票数</strong>
+        <div>3,019</div>
+      </div>
+      <div class="card">
+        <strong>5D Win Rate / 5日胜率</strong>
+        <div>46.64%</div>
+      </div>
+      <div class="card">
+        <strong>5D Avg Return / 5日平均收益</strong>
+        <div>0.19%</div>
+      </div>
+      <div class="card">
+        <strong>5D Median Return / 5日中位收益</strong>
+        <div>-0.27%</div>
+      </div>
+      <div class="card">
+        <strong>Entry Day Gain / 当日涨幅均值</strong>
+        <div>2.48%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart">
+    <h2>Gain Bucket Effect / 涨幅分层</h2>
+    <img src="gain_bucket_avg_return_5d.png" alt="Gain bucket average return">
+    <table class="dataframe tw-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>gain_bucket</th>
+      <th>signal_count</th>
+      <th>avg_return</th>
+      <th>median_return</th>
+      <th>win_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>&lt;=0%</td>
+      <td>49</td>
+      <td>0.08%</td>
+      <td>-1.08%</td>
+      <td>40.82%</td>
+    </tr>
+    <tr>
+      <td>0-1%</td>
+      <td>1561</td>
+      <td>0.29%</td>
+      <td>0.00%</td>
+      <td>48.30%</td>
+    </tr>
+    <tr>
+      <td>1-2%</td>
+      <td>8431</td>
+      <td>0.07%</td>
+      <td>-0.23%</td>
+      <td>46.34%</td>
+    </tr>
+    <tr>
+      <td>2-3%</td>
+      <td>11460</td>
+      <td>0.23%</td>
+      <td>-0.26%</td>
+      <td>46.82%</td>
+    </tr>
+    <tr>
+      <td>3-4%</td>
+      <td>10431</td>
+      <td>0.23%</td>
+      <td>-0.40%</td>
+      <td>46.45%</td>
+    </tr>
+  </tbody>
+</table>
+  </div>
+
+  <div class="chart">
+    <h2>Market Cap Effect / 市值分层</h2>
+    <img src="market_cap_avg_return_5d.png" alt="Market cap average return">
+    <table class="dataframe tw-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>market_cap_bucket</th>
+      <th>signal_count</th>
+      <th>avg_return</th>
+      <th>median_return</th>
+      <th>win_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>&lt;20B</td>
+      <td>24371</td>
+      <td>0.27%</td>
+      <td>-0.22%</td>
+      <td>47.24%</td>
+    </tr>
+    <tr>
+      <td>20-50B</td>
+      <td>4226</td>
+      <td>-0.08%</td>
+      <td>-0.51%</td>
+      <td>44.30%</td>
+    </tr>
+    <tr>
+      <td>50-100B</td>
+      <td>1331</td>
+      <td>0.22%</td>
+      <td>-0.28%</td>
+      <td>46.43%</td>
+    </tr>
+    <tr>
+      <td>100-200B</td>
+      <td>988</td>
+      <td>-0.16%</td>
+      <td>-0.52%</td>
+      <td>44.13%</td>
+    </tr>
+    <tr>
+      <td>200B+</td>
+      <td>977</td>
+      <td>-0.20%</td>
+      <td>-0.41%</td>
+      <td>44.01%</td>
+    </tr>
+  </tbody>
+</table>
+  </div>
+
+  <div class="chart">
+    <h2>Signal Count By Year / 年度信号数</h2>
+    <img src="signal_count_by_year.png" alt="Signal count by year">
+    <table class="dataframe tw-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>signal_year</th>
+      <th>signal_count</th>
+      <th>avg_return</th>
+      <th>win_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2018</td>
+      <td>504</td>
+      <td>-1.43%</td>
+      <td>35.52%</td>
+    </tr>
+    <tr>
+      <td>2019</td>
+      <td>4019</td>
+      <td>1.17%</td>
+      <td>56.56%</td>
+    </tr>
+    <tr>
+      <td>2020</td>
+      <td>3687</td>
+      <td>0.31%</td>
+      <td>47.19%</td>
+    </tr>
+    <tr>
+      <td>2021</td>
+      <td>3288</td>
+      <td>-0.07%</td>
+      <td>42.88%</td>
+    </tr>
+    <tr>
+      <td>2022</td>
+      <td>2939</td>
+      <td>-0.53%</td>
+      <td>40.25%</td>
+    </tr>
+    <tr>
+      <td>2023</td>
+      <td>4892</td>
+      <td>-0.20%</td>
+      <td>41.58%</td>
+    </tr>
+    <tr>
+      <td>2024</td>
+      <td>4889</td>
+      <td>-0.28%</td>
+      <td>41.34%</td>
+    </tr>
+    <tr>
+      <td>2025</td>
+      <td>6534</td>
+      <td>0.79%</td>
+      <td>53.86%</td>
+    </tr>
+    <tr>
+      <td>2026</td>
+      <td>1180</td>
+      <td>-0.03%</td>
+      <td>45.17%</td>
+    </tr>
+  </tbody>
+</table>
+  </div>
+</body>
+</html>

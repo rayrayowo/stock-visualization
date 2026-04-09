@@ -1,157 +1,105 @@
-# Stock Visualization
+# Trade Wizard
 
-Data-driven analysis of Chinese and U.S. equity markets using historical data.
-This project focuses on **interpretable signal analysis**, **strategy evaluation**, and **backtesting**.
+> An experimental framework for algorithmic trading strategies combining technical indicators, neural network signal composition, and white-brick (砖型图) pattern recognition.
 
-## 🆕 What's New (2026)
+**Status:** Active development
+**Authors:** Ruiyang Zhang & Alan
 
-### B1/B2 Strategy Scanner v2.0
-- Real-time stock screening with B1 (oversold bounce) and B2 (momentum) strategies
-- Built-in technical indicators: KDJ, MACD, RSI, BOLL, Zhixing Trend Lines, Brick Chart
-- Streamlit UI for single stock analysis and batch scanning
-- Support for Tushare (China A-shares) and Yahoo Finance
+---
 
-### Neural Network Trading Strategy
-- Node-based strategy composition
-- Walk-forward MLP backtesting
-- Portfolio metrics: cumulative return, max drawdown, win rate
+## Project Overview
 
-## What This Project Does
+Trade Wizard is a modular trading strategy research platform. It supports:
 
-- **Data Collection**: Tushare (China A-shares), Yahoo Finance (US/HK stocks)
-- **Technical Analysis**: KDJ, MACD, RSI, BOLL, Moving Averages, Zhixing Trend Lines, Brick Chart
-- **Strategy Signals**: B1 (KDJ J<13, MACD DEA>0), B2 (KDJ J<55, +4% price, volume ratio>1.1)
-- **Backtesting**: Walk-forward analysis, portfolio metrics
-- **Visualization**: K-line charts, profit curves, violin plots, monthly returns
+- **Technical analysis** — KDJ, MACD, RSI, Bollinger Bands, Zhixing trend lines, brick charts
+- **Signal composition** — Node-based visual strategy builder (AND/OR/NOT logic)
+- **Neural network** — MLP-based walk-forward backtesting
+- **White Brick (白砖)** — TongDaXin-style brick chart pattern detection
+- **Real-time screening** — Streamlit UI for live stock scanning (A-shares + US markets)
 
-## Strategies
+---
 
-### B1 Strategy (Oversold Bounce)
-- Market: Shanghai/Shenzhen Main Board
-- Weekly: MA30 > MA60 > MA120 > MA240
-- Daily: KDJ J < 13, MACD DEA > 0
-- Zhixing: White line > Yellow line
-
-### B2 Strategy (Momentum)
-- Market: Shanghai/Shenzhen Main Board
-- Weekly: MA30 > MA60 > MA120 > MA240
-- Daily: KDJ J < 55, Price change >= 4%, Volume ratio >= 1.1
-
-### Brick Chart (ZX-ZHUAN)
-- White brick = Buy signal (golden cross after green day)
-- Red brick = Hold
-- Green brick = Short/Empty
-
-## Repository Structure
+## Project Structure
 
 ```
-stock-visualization/
-├── b1_scanner/           # B1/B2 Strategy Scanner v2.0
-│   ├── app.py           # Streamlit UI
-│   ├── scanner_core.py   # Strategy logic
-│   ├── indicators.py     # Technical indicators
-│   └── data_sources.py  # Tushare + Yahoo Finance
-│
-├── trade_wizards_mvp/   # Neural Network Trading
-│   ├── run_demo.py      # Run backtest
-│   ├── tw_mvp/          # Core modules
-│   └── config/          # Strategy configs
-│
-├── src/                  # Legacy analysis scripts
-├── data/                 # Raw and processed data
-├── outputs/              # Charts and results
-└── README.md
+trade_wizards_mvp/     # Neural network + node-based strategy backtesting
+├── tw_mvp/             # Core engine: nodes, pipeline, backtesting, reporting
+│   ├── nodes.py        # NodeGraphEngine — signal composition
+│   ├── pipeline.py     # End-to-end: data → features → graph → backtest → metrics
+│   ├── backtesting.py  # Portfolio backtest engine
+│   ├── features.py     # Technical indicator features
+│   ├── data_pipeline.py # Feature dataset builder
+│   └── reporting.py    # Chart annotations + report generation
+├── config/             # Neural node graph configurations
+├── outputs/             # Backtest results and generated charts
+│   └── neural_node_sandbox_*/   # Historical run outputs
+└── run_demo.py         # Launch the neural node backtest demo
+
+b1_scanner/            # Real-time B1/B2 strategy stock scanner
+├── app.py            # Streamlit UI
+├── scanner_core.py   # Strategy signal logic
+├── indicators.py     # Technical indicator calculations
+├── data_sources.py   # Tushare + Yahoo Finance data
+└── kline_chart.py   # Candlestick chart generation
 ```
+
+---
 
 ## Quick Start
 
-### B1 Scanner (Recommended)
+### Neural Node Backtest (trade_wizards_mvp)
+
+```bash
+cd trade_wizards_mvp
+python3 run_demo.py
+# Results → outputs/neural_node_sandbox_final/
+```
+
+### Real-Time Stock Scanner (b1_scanner)
 
 ```bash
 cd b1_scanner
 pip install -r requirements.txt
-
-# Set Tushare token (optional)
-export TUSHARE_TOKEN="your_token_here"
-
-# Run UI
+export TUSHARE_TOKEN="your_token_here"   # Optional, for A-shares
 streamlit run app.py
 ```
 
-### Neural Network Strategy
+---
 
-```bash
-cd trade_wizards_mvp
-.venv/bin/python run_demo.py
-```
+## Technical Stack
 
-## Data Sources
+- **Languages:** Python 3
+- **Data:** Tushare Pro (A-shares), Yahoo Finance (US/HK)
+- **Indicators:** KDJ(9,3,3), MACD(12,26,9), RSI, BOLL, Zhixing Lines, Brick Chart
+- **ML:** scikit-learn (MLPClassifier), walk-forward backtesting
+- **UI:** Streamlit
+- **Visualization:** Plotly, Matplotlib, PIL
 
-| Source | Coverage | API |
-|--------|----------|-----|
-| **Tushare** | China A-shares (600/601/603/000) | Requires token |
-| **Yahoo Finance** | US/HK/China stocks | Free |
+---
 
-### Get Tushare Token
-1. Register at https://tushare.pro
-2. Get your token from profile
-3. Set: `export TUSHARE_TOKEN="your_token"`
+## Key Strategies
 
-## Technical Indicators
+### B1 — Oversold Rebound
+KDJ J < 13 + MACD DEA > 0 + White line > Yellow line → buy on next-day open
 
-- **KDJ** (9,3,3): Overbought/oversold
-- **MACD** (12,26,9): Trend
-- **RSI** (14): Relative strength
-- **BOLL** (20,2): Bollinger Bands
-- **Zhixing White**: EMA(EMA(C,10),10) - Short-term trend
-- **Zhixing Yellow**: (MA14+MA28+MA57+MA114)/4 - Long-term trend
-- **Brick Chart**: Volume-based momentum
+### B2 — Momentum Confirmation
+After B1 + daily gain ≥ 4% + KDJ J < 55 + volume surge → buy confirmation
 
-## Main Outputs
+### Neural Node Strategy
+Composable node graph: AND/OR/NOT logic combining KDJ, MACD, RSI, and MA signals
 
-Generated under `b1_scanner/`:
-- Real-time screening results
-- K-line charts with indicators
-- Buy/sell signals
+### Super White Brick
+Brick chart with TongDaXin EMA approximation for A-share trend detection
 
-Generated under `trade_wizards_mvp/outputs/`:
-- `metrics.json/csv`: Performance metrics
-- `trades.csv`: Trade records
-- `trade_annotations_*.png`: Charts with entry/exit markers
+---
 
-## Customize Strategies
+## Data
 
-### Add Custom Stock List
-Edit the watchlist in `b1_scanner/app.py`:
-```
-600519.SH,贵州茅台
-600276.SH,恒瑞医药
-688235.SH,百济神州
-```
+- **S&P 500:** `data/raw/all_stocks_5yr.csv` — 505 US stocks, 2013–2018
+- **A-shares:** Tushare Pro (requires token)
 
-### Modify B1/B2 Conditions
-Edit `scanner_core.py`:
-```python
-@dataclass
-class B1Config:
-    strategy: str = "B1"  # or "B2"
-    require_golden_cross: bool = False
-    require_brick_white: bool = False
-```
-
-## Tech Stack
-
-- **Python 3.12**
-- **Data**: Pandas, NumPy, Tushare, yfinance
-- **ML**: scikit-learn (Neural Networks)
-- **Visualization**: Plotly, Matplotlib, Streamlit
-- **Backtesting**: Custom pipeline
+---
 
 ## License
 
-MIT License - For educational purposes only. Not investment advice.
-
-## Contact
-
-- GitHub: [rayrayowo](https://github.com/rayrayowo)
-- Email: zhang.ruiyang@northeastern.edu
+MIT License — Educational purposes only. Not investment advice.

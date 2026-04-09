@@ -1,0 +1,8 @@
+{
+  "strategy": "super_white_brick",
+  "default_horizon_days": 5,
+  "event_count": 31951,
+  "unique_symbols": 3019,
+  "market_cap_source": "/Users/rayzhang/clawd/shared/cache/tushare/market_cap_daily_full.csv",
+  "month_end_market_cap_path": "/Users/rayzhang/Downloads/trade_wizards_studio/data/derived/market_cap_month_end.csv"
+}

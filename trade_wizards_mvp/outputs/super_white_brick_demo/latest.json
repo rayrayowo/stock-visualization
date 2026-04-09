@@ -1,0 +1,32 @@
+{
+  "strategy": "super_white_brick",
+  "generated_at": "2026-04-04",
+  "source_workspace": "/Users/rayzhang/Downloads/trade_wizards_studio",
+  "artifacts_root": "/Users/rayzhang/Downloads/trade_wizards_studio/outputs/super_white_brick_demo",
+  "event_count": 31932,
+  "unique_symbols": 3019,
+  "holding_horizon_days": 5,
+  "avg_return": 0.001915,
+  "median_return": -0.002748,
+  "win_rate": 0.466366,
+  "avg_same_day_gain_pct": 2.480377,
+  "best_gain_bucket": {
+    "bucket": "0-1%",
+    "avg_return": 0.002893,
+    "win_rate": 0.483024
+  },
+  "best_market_cap_bucket": {
+    "bucket": "<20B",
+    "avg_return": 0.002672,
+    "win_rate": 0.472447
+  },
+  "historical_data_sources": {
+    "daily_cache": "/Users/rayzhang/clawd/shared/cache/tushare",
+    "old_backtest_script": "/Users/rayzhang/clawd/angel/scripts/backtest_super_white_brick.py",
+    "old_overnight_script": "/Users/rayzhang/clawd/angel/scripts/super_white_brick_overnight.py"
+  },
+  "suggested_targets": {
+    "trade_wizards_code": "/Users/rayzhang/Downloads/stock-visualization/trade_wizards_mvp",
+    "team_summary_mirror": "/Users/rayzhang/clawd/shared/reports/clawteam/super-white-brick-demo"
+  }
+}
