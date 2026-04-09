@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B1/B2 Trading Strategy — Backtest &amp; Visualization | DS4200</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<a href="#introduction" class="skip-link">Skip to content</a>
+
+<header>
+  <div class="container">
+    <h1>B1/B2 Oversold Rebound Strategy</h1>
+    <p class="subtitle">Can a KDJ-based mean-reversion strategy generate consistent returns across US and Chinese stock markets?</p>
+    <p class="meta">DS4200 Final Project &mdash; Ruiyang Zhang &amp; Alan | Northeastern University | Spring 2026</p>
+  </div>
+</header>
+
+<nav class="sticky-nav" aria-label="Visualization sections">
+  <ul>
+    <li><a href="#introduction">Intro</a></li>
+    <li><a href="#data">Data</a></li>
+    <li><a href="#viz1">1 Equity</a></li>
+    <li><a href="#viz2">2 Params</a></li>
+    <li><a href="#viz3">3 Markets</a></li>
+    <li><a href="#viz4">4 Trades</a></li>
+    <li><a href="#viz5">5 K-line</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+
+<main class="container">
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- INTRODUCTION -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="introduction">
+  <h2>Introduction</h2>
+  <p>
+    Technical indicators like KDJ and MACD are widely used by traders to time entries and exits.
+    But do they actually work? And if so, <em>which parameters matter most</em>?
+  </p>
+  <p>
+    We designed two trading strategies &mdash; <strong>B1</strong> (oversold rebound) and <strong>B2</strong>
+    (momentum confirmation) &mdash; and backtested them with rigorous position management across
+    <strong>S&amp;P 500</strong> (505 stocks, 2013&ndash;2018) and <strong>3,066 Chinese A-share stocks</strong>
+    (2015&ndash;2026). We then ran a <strong>parameter sweep</strong> (81 combinations per strategy) to
+    find optimal stop-loss, observation period, and profit-taking thresholds.
+  </p>
+
+  <h3>Strategy Definitions</h3>
+  <div class="strategy-cards">
+    <div class="strategy-card b1-card">
+      <h4>B1 &mdash; Oversold Rebound</h4>
+      <p><strong>Entry:</strong> KDJ J &lt; 13 + MACD DEA &gt; 0 + Uptrend confirmed (white line &gt; yellow line)</p>
+      <p><strong>Logic:</strong> Buy the next day when price is extremely oversold but the macro trend is still intact.</p>
+    </div>
+    <div class="strategy-card b2-card">
+      <h4>B2 &mdash; Momentum Confirmation</h4>
+      <p><strong>Entry:</strong> After B1 appears &rarr; daily gain &ge; 4% + KDJ J &lt; 55 + volume surge</p>
+      <p><strong>Logic:</strong> A B1 stock that breaks out with volume confirms the reversal.</p>
+    </div>
+  </div>
+
+  <h3>Position Management</h3>
+  <p>
+    Both strategies use the same exit framework: <strong>hard stop-loss</strong> (2&ndash;4% below entry),
+    <strong>observation period</strong> (sell if not profitable after N days), <strong>fly trigger</strong>
+    (sell half when gain &ge; 5&ndash;10%), and <strong>S1 signal</strong> (exit remaining on a high-volume
+    bearish candle). The backtest uses <strong>10 position slots</strong> for B1 and <strong>4 slots</strong>
+    for B2, with dynamic position sizing based on current portfolio value.
+  </p>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- DATA DESCRIPTION -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="data">
+  <h2>Data</h2>
+
+  <div class="data-info">
+    <div class="stat">
+      <div class="value">2</div>
+      <div class="label">Markets</div>
+    </div>
+    <div class="stat">
+      <div class="value">3,571</div>
+      <div class="label">Stocks Total</div>
+    </div>
+    <div class="stat">
+      <div class="value">81 &times; 2</div>
+      <div class="label">Parameter Combos</div>
+    </div>
+    <div class="stat">
+      <div class="value">11,005</div>
+      <div class="label">Trades Analyzed</div>
+    </div>
+  </div>
+
+  <h3>Data Sources</h3>
+  <table class="data-table">
+    <thead>
+      <tr><th>Market</th><th>Stocks</th><th>Period</th><th>Source</th><th>Features</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>S&amp;P 500 (US)</td><td>505</td><td>2013 &ndash; 2018</td>
+        <td><a href="https://www.kaggle.com/datasets/camnugent/sandp500" target="_blank">Kaggle</a> + Yahoo Finance</td>
+        <td>OHLCV, KDJ(9,3,3), MACD(12,26,9), regime</td>
+      </tr>
+      <tr>
+        <td>A-shares (China)</td><td>3,066</td><td>2015 &ndash; 2026</td>
+        <td><a href="https://tushare.pro/" target="_blank">Tushare Pro API</a> (qfq adjusted)</td>
+        <td>OHLCV, KDJ(9,3,3), MACD(12,26,9), brick chart, regime</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Technical Indicators</h3>
+  <ul>
+    <li><strong>KDJ (9,3,3):</strong> Stochastic oscillator. J &lt; 13 = extreme oversold.</li>
+    <li><strong>MACD (12,26,9):</strong> Trend-following momentum. DEA &gt; 0 = bullish macro trend.</li>
+    <li><strong>White/Yellow Line (Zhixing Line):</strong> White = EMA(EMA(C,10),10), Yellow = average of MA(14,28,57,114). White &gt; Yellow = uptrend confirmed.</li>
+    <li><strong>Market Regime:</strong> S&amp;P proxy above 200-day MA = bull, below = bear.</li>
+  </ul>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- VIZ 1: Strategy Equity Curve + Regime (D3) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="viz1">
+  <div class="viz-card">
+    <h3>Visualization 1: B1 &amp; B2 Strategy Equity Curves</h3>
+    <p>
+      Portfolio value over 5 years using the <strong>optimized B1</strong> (green, solid) and
+      <strong>B2</strong> (blue, dashed) strategies on S&amp;P 500, compared against a
+      <strong>buy-and-hold</strong> baseline (gray, dashed). Starting capital: $1,000,000.
+      The shaded background shows bull (green) and bear (red) market regimes.
+    </p>
+    <div class="interaction-hint">
+      <strong>How to interact:</strong> Drag on the lower mini-chart to select a time range.
+      Hover for exact portfolio value and drawdown on any date.
+    </div>
+    <div class="viz-container" id="viz1-container"></div>
+    <div class="takeaway">
+      <strong>Key result:</strong> The optimized B1 strategy achieved a <strong>Sharpe ratio of 1.42</strong>
+      with only <strong>-7.6% max drawdown</strong>, turning $1M into $1.86M (+86.3%) over 5 years
+      (13.3% CAGR). The strategy performs consistently across both bull and bear regimes.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- VIZ 2: Parameter Sensitivity (Altair) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="viz2">
+  <div class="viz-card">
+    <h3>Visualization 2: Parameter Sensitivity Analysis</h3>
+    <p>
+      Results from an <strong>81-combination parameter sweep</strong> on the S&amp;P 500 backtest.
+      Each cell shows a metric for a (stop-loss, observation period) combination,
+      faceted by fly trigger threshold. Darker blue = better performance (for Max Drawdown: darker red = worse).
+    </p>
+    <div class="interaction-hint">
+      <strong>How to interact:</strong> Use the radio buttons to switch between B1 and B2 strategies,
+      or toggle the color metric (Sharpe / Win Rate / Max Drawdown). Hover for exact values.
+    </div>
+    <div class="viz-container" id="viz2-container"></div>
+    <div class="takeaway">
+      <strong>Key finding:</strong> Stop-loss is the <strong>most impactful parameter</strong> &mdash;
+      2% stop-loss consistently outperforms 3% and 4% across both strategies and both markets.
+      This tight stop-loss works because B1 targets oversold bounces: if the bounce doesn&rsquo;t
+      come immediately, the thesis is wrong and exiting fast preserves capital.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- VIZ 3: Cross-Market Comparison (Static) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="viz3">
+  <div class="viz-card">
+    <h3>Visualization 3: Cross-Market Comparison &mdash; A-Shares vs S&amp;P 500</h3>
+    <p>
+      Side-by-side comparison of the optimized B1 and B2 strategies across
+      <strong>Chinese A-shares</strong> (3,066 stocks, 11 years) and
+      <strong>S&amp;P 500</strong> (505 stocks, 5 years). Same strategy logic, different markets.
+    </p>
+    <div class="viz-container" id="viz3-container" style="min-height:auto;text-align:center;">
+      <img src="img/viz3-crossmarket.png" alt="Cross-market comparison: Sharpe ratio and total return for B1 and B2 strategies across S&P 500 and A-shares" class="viz3-static-img" loading="lazy">
+    </div>
+    <div class="takeaway">
+      <strong>Key finding:</strong> B1 is <strong>robust across both markets</strong> (Sharpe 1.42 US, 1.59 China)
+      with consistent optimal parameters (2% stop-loss, 1-day observation). B2 shows strong
+      <strong>market divergence</strong> &mdash; exceptional in A-shares (Sharpe 1.60, +1,143%) but
+      modest in S&amp;P 500 (Sharpe 0.47, +26%), likely because A-share stocks exhibit stronger
+      momentum patterns after oversold rebounds.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- VIZ 4: Trade Scatter (D3) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="viz4">
+  <div class="viz-card">
+    <h3>Visualization 4: Individual Trade Outcomes</h3>
+    <p>
+      Every trade from the optimized B1 strategy on S&amp;P 500, plotted by
+      <strong>holding period</strong> vs <strong>return</strong>. Color indicates the exit reason.
+      Trades that triggered the &ldquo;fly&rdquo; mechanism (sold half at +5%) are marked with white rings.
+    </p>
+
+    <!-- Summary stats -->
+    <div id="viz4-stats" style="margin-bottom:12px;"></div>
+
+    <!-- Filters -->
+    <div class="interaction-hint" id="viz4-filters" style="margin-bottom:8px;">
+      <strong>Filter trades:</strong> Loading...
+    </div>
+
+    <div class="viz-container" id="viz4-container"></div>
+    <div class="takeaway">
+      <strong>Key insight:</strong> The strategy has a classic <strong>asymmetric return profile</strong>:
+      67% of trades lose (clustered at -2% stop-loss in the lower-left), but the 33% that win
+      generate outsized returns (up to +100%) over longer holding periods. Trades exiting via S1
+      (green dots, upper-right) are the most profitable, averaging +11% per trade.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- VIZ 5: K-line with Signal Annotations (TradingView) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="viz5">
+  <div class="viz-card">
+    <h3>Visualization 5: AAPL Price Chart with B1/B2 Signals</h3>
+    <p>
+      AAPL daily candlestick chart with <strong>B1 and B2 signal markers</strong> overlaid on price action.
+      This shows how the abstract strategy signals translate to actual buy points on a real stock.
+    </p>
+    <div class="interaction-hint">
+      <strong>How to interact:</strong> Click and drag to pan across time. Scroll to zoom in/out.
+      The crosshair follows your cursor showing exact OHLC values.
+      <span style="color:#22c55e">Green markers</span> = B1 buy signals,
+      <span style="color:#3b82f6">Blue markers</span> = MACD golden cross,
+      <span style="color:#ef4444">Red markers</span> = KDJ dead cross (sell).
+      Volume bars at the bottom show trading activity.
+    </div>
+    <div class="viz-container" id="viz5-container"></div>
+    <div class="takeaway">
+      <strong>Observation:</strong> B1 signals (green) consistently appear near local price bottoms,
+      confirming the oversold-rebound thesis. Not every signal leads to a rally, but the ones that do
+      tend to precede significant upward moves, which is why the fly mechanism captures value.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- CONCLUSION -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="conclusion">
+  <h2>Conclusion</h2>
+  <p>
+    Our cross-market backtest of the B1/B2 oversold rebound strategy reveals several important findings:
+  </p>
+  <ol>
+    <li><strong>Stop-loss is the most important parameter.</strong> Across both markets and both strategies,
+    a tight 2% stop-loss dramatically improves risk-adjusted returns (Sharpe +38% vs 4% stop-loss).
+    When trading mean-reversion, wrong entries should be cut immediately.</li>
+
+    <li><strong>B1 is cross-market robust.</strong> The same strategy with nearly identical optimal parameters
+    works in both S&amp;P 500 (Sharpe 1.42) and A-shares (Sharpe 1.59). This suggests the oversold-rebound
+    pattern is a fundamental market behavior, not a market-specific anomaly.</li>
+
+    <li><strong>B2 is market-dependent.</strong> B2&rsquo;s momentum confirmation mechanism works spectacularly
+    in A-shares (+1,143% over 11 years) but underperforms in S&amp;P 500 (+26% over 5 years),
+    likely due to different market microstructure and volatility patterns.</li>
+
+    <li><strong>Asymmetric returns drive profitability.</strong> Both strategies have low win rates (~30%),
+    but profitable trades generate outsized returns through the &ldquo;fly&rdquo; mechanism.
+    The key is preserving capital on losers (tight stop-loss) while letting winners run.</li>
+  </ol>
+
+  <h3>Implementation</h3>
+  <p>
+    The full backtest engine, signal generation code, parameter sweep scripts, and data pipeline are
+    available in the <a href="https://github.com/rayrayowo/stock-visualization" target="_blank">GitHub repository</a>.
+    The backtest runs on S&amp;P 500 data (Kaggle/Yahoo Finance) and Chinese A-share data (Tushare Pro API).
+  </p>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- REFERENCES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<section id="references" class="references">
+  <h2>References</h2>
+  <ul>
+    <li>Fama, E. F. (1970). "Efficient Capital Markets: A Review of Theory and Empirical Work." <em>The Journal of Finance</em>, 25(2), 383&ndash;417.</li>
+    <li>Murphy, J. J. (1999). <em>Technical Analysis of the Financial Markets</em>. New York Institute of Finance.</li>
+    <li>Lane, G. C. (1984). "Lane's Stochastics." <em>Technical Analysis of Stocks &amp; Commodities</em>, 2(3).</li>
+    <li>Appel, G. (2005). <em>Technical Analysis: Power Tools for Active Investors</em>. FT Press.</li>
+    <li>Nugent, C. (2018). S&amp;P 500 Stock Data. <a href="https://www.kaggle.com/datasets/camnugent/sandp500" target="_blank">Kaggle</a></li>
+    <li>Tushare Pro. <a href="https://tushare.pro/" target="_blank">tushare.pro</a> &mdash; Chinese A-share market data API.</li>
+    <li>Bostock, M. (2023). D3.js. <a href="https://d3js.org/" target="_blank">d3js.org</a></li>
+    <li>VanderPlas, J. et al. (2018). "Altair: Interactive Statistical Visualizations for Python." <a href="https://altair-viz.github.io/" target="_blank">altair-viz.github.io</a></li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <p>DS4200 &mdash; Information Presentation and Data Visualization | Spring 2026 | Northeastern University</p>
+  <p><a href="https://github.com/rayrayowo/stock-visualization" target="_blank">GitHub Repository</a></p>
+</footer>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- D3 v7 -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<!-- Vega/Vega-Lite/Vega-Embed for Altair -->
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<!-- TradingView Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
+
+<!-- Viz 1: Equity Curve (D3) -->
+<script src="js/viz1-equity.js"></script>
+<!-- Viz 2: Parameter Sensitivity (Altair) -->
+<script>
+  vegaEmbed('#viz2-container', 'js/viz2-param-spec.json', {actions: false, renderer: 'svg'})
+    .catch(err => {
+      document.getElementById('viz2-container').innerHTML =
+        '<p style="color:#999;text-align:center;">Loading parameter sensitivity chart...</p>';
+      console.error('Viz2 load error:', err);
+    });
+</script>
+<!-- Viz 3: Static cross-market image — no JS needed -->
+<!-- Viz 4: Trade Scatter (D3) -->
+<script src="js/viz4-trades.js"></script>
+<!-- Viz 5: K-line (TradingView) -->
+<script src="js/viz5-kline.js"></script>
+
+<!-- Tooltip div for D3 -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- Scroll spy for sticky nav -->
+<script>
+(function() {
+  const links = document.querySelectorAll('.sticky-nav a');
+  const sections = [...links].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function onScroll() {
+    let current = '';
+    sections.forEach(s => {
+      if (s.getBoundingClientRect().top <= 120) current = s.id;
+    });
+    links.forEach(a => {
+      const isActive = a.getAttribute('href') === '#' + current;
+      a.classList.toggle('active', isActive);
+      if (isActive) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+
+</body>
+</html>

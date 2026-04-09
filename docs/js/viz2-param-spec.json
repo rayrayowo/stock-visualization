@@ -1,0 +1,143 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": {
+    "text": "Parameter Sensitivity: 81 Combinations per Strategy",
+    "subtitle": "Each cell = one backtest config. Darker blue = better performance.",
+    "fontSize": 16,
+    "subtitleFontSize": 12,
+    "subtitleColor": "#6b7280"
+  },
+  "data": {"url": "data/viz2_grid_flat.json"},
+  "params": [
+    {
+      "name": "strategySelect",
+      "value": "B1",
+      "bind": {
+        "input": "radio",
+        "options": ["B1", "B2"],
+        "name": "Strategy: "
+      }
+    },
+    {
+      "name": "metricSelect",
+      "value": "sharpe",
+      "bind": {
+        "input": "radio",
+        "options": ["sharpe", "win_rate", "pnl_pct", "max_dd"],
+        "labels": ["Sharpe Ratio", "Win Rate (%)", "Total Return (%)", "Max Drawdown (%)"],
+        "name": "Color metric: "
+      }
+    }
+  ],
+  "transform": [
+    {"filter": "datum.strategy === strategySelect"},
+    {
+      "calculate": "metricSelect === 'sharpe' ? datum.sharpe : metricSelect === 'win_rate' ? datum.win_rate : metricSelect === 'pnl_pct' ? datum.pnl_pct : datum.max_dd",
+      "as": "metric_value"
+    }
+  ],
+  "facet": {
+    "column": {
+      "field": "fly_pct",
+      "type": "ordinal",
+      "title": "Fly Trigger",
+      "sort": ["5%", "8%", "10%"],
+      "header": {"labelFontSize": 12, "titleFontSize": 13}
+    },
+    "row": {
+      "field": "bear_mode",
+      "type": "ordinal",
+      "title": "Bear Strategy",
+      "sort": ["full", "half", "skip"],
+      "header": {"labelFontSize": 12, "titleFontSize": 13}
+    }
+  },
+  "spec": {
+    "width": 170,
+    "height": 130,
+    "layer": [
+      {
+        "mark": {
+          "type": "rect",
+          "stroke": "#fff",
+          "strokeWidth": 1.5,
+          "cornerRadius": 3
+        },
+        "encoding": {
+          "x": {
+            "field": "stop_loss",
+            "type": "ordinal",
+            "title": "Stop-Loss",
+            "sort": ["2%", "3%", "4%"],
+            "axis": {"labelFontSize": 11, "titleFontSize": 12}
+          },
+          "y": {
+            "field": "obs_days",
+            "type": "ordinal",
+            "title": "Observation",
+            "sort": ["1 day", "2 days", "3 days"],
+            "axis": {"labelFontSize": 11, "titleFontSize": 12}
+          },
+          "color": {
+            "field": "metric_value",
+            "type": "quantitative",
+            "title": "Value",
+            "scale": {
+              "scheme": {"expr": "metricSelect === 'max_dd' ? 'reds' : 'blues'"},
+              "reverse": {"expr": "metricSelect === 'max_dd'"}
+            },
+            "legend": {"gradientLength": 160}
+          },
+          "tooltip": [
+            {"field": "stop_loss", "title": "Stop-Loss"},
+            {"field": "obs_days", "title": "Observation"},
+            {"field": "fly_pct", "title": "Fly Trigger"},
+            {"field": "bear_mode", "title": "Bear Mode"},
+            {"field": "sharpe", "title": "Sharpe", "format": ".2f"},
+            {"field": "win_rate", "title": "Win Rate %", "format": ".1f"},
+            {"field": "pnl_pct", "title": "Return %", "format": ".1f"},
+            {"field": "max_dd", "title": "Max DD %", "format": ".1f"},
+            {"field": "trades", "title": "Trades"}
+          ]
+        }
+      },
+      {
+        "mark": {
+          "type": "text",
+          "fontSize": 10,
+          "fontWeight": 600
+        },
+        "encoding": {
+          "x": {
+            "field": "stop_loss",
+            "type": "ordinal",
+            "sort": ["2%", "3%", "4%"]
+          },
+          "y": {
+            "field": "obs_days",
+            "type": "ordinal",
+            "sort": ["1 day", "2 days", "3 days"]
+          },
+          "text": {
+            "field": "metric_value",
+            "type": "quantitative",
+            "format": ".2f"
+          },
+          "color": {
+            "condition": {
+              "test": "metricSelect === 'max_dd' ? datum.metric_value < -6 : (metricSelect === 'sharpe' ? datum.metric_value > 1.0 : metricSelect === 'win_rate' ? datum.metric_value > 32 : datum.metric_value > 60)",
+              "value": "#ffffff"
+            },
+            "value": "#1a1a2e"
+          }
+        }
+      }
+    ]
+  },
+  "config": {
+    "font": "DM Sans, Outfit, -apple-system, sans-serif",
+    "axis": {"grid": false, "domain": false},
+    "view": {"stroke": null},
+    "facet": {"spacing": 12}
+  }
+}
